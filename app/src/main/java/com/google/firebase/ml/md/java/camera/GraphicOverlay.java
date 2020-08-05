@@ -138,11 +138,13 @@ public class GraphicOverlay extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        Log.d("drawingdrawing","drawing");
 
         if (previewWidth > 0 && previewHeight > 0) {
             widthScaleFactor = (float) getWidth() / previewWidth;
             heightScaleFactor = (float) getHeight() / previewHeight;
         }
+
 
         synchronized (lock) {
             for (Graphic graphic : graphics) {

@@ -29,6 +29,9 @@ import android.util.Log;
 
 import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
+
+import com.google.firebase.ml.md.java.LiveObjectDetectionActivity;
+import com.google.firebase.ml.md.java.Test;
 import com.google.firebase.ml.vision.objects.FirebaseVisionObject;
 import com.google.firebase.ml.md.java.camera.GraphicOverlay;
 import com.google.firebase.ml.md.java.camera.GraphicOverlay.Graphic;
@@ -124,6 +127,9 @@ class ObjectGraphicInProminentMode extends Graphic {
                 boxGradientStartColor,
                 boxGradientEndColor,
                 TileMode.CLAMP));
+
+      Test test = new LiveObjectDetectionActivity();
+      test.GetNotified(object);
       Log.d("translateeee", rect.left+"//"+rect.top+"//"+rect.right+"//"+rect.bottom);
 
       canvas.drawRoundRect(rect, boxCornerRadius, boxCornerRadius, boxPaint);

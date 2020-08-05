@@ -62,6 +62,13 @@ public class DetectedObject {
     return object.getBoundingBox();
   }
 
+  /**NIKHAR NOTES :
+   * A synchronized block in Java is synchronized on some object.
+   *  All synchronized blocks synchronized on the same object can only have one thread executing inside them at a time.
+   *  All other threads attempting to enter the synchronized block
+   *  are blocked until the thread inside the synchronized block exits the block.
+   * */
+
   public synchronized Bitmap getBitmap() {
     if (bitmap == null) {
       Rect boundingBox = object.getBoundingBox();

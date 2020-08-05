@@ -50,6 +50,16 @@ public class WorkflowModel extends AndroidViewModel implements SearchResultListe
     SEARCHED
   }
 
+    /** NIKHAR NOTES:
+     *
+     * MutableLiveData VS LiveData
+     * LiveData has no public method to modify its data.
+     * So , You can't update its value like getUser().setValue(userObject)
+     *
+     * So when you don't want your data to be modified use LiveData
+     * If you want to modify your data later use MutableLiveData
+     */
+
   public final MutableLiveData<WorkflowState> workflowState = new MutableLiveData<>();
   public final MutableLiveData<DetectedObject> objectToSearch = new MutableLiveData<>();
   public final MutableLiveData<SearchedObject> searchedObject = new MutableLiveData<>();
@@ -65,6 +75,10 @@ public class WorkflowModel extends AndroidViewModel implements SearchResultListe
     super(application);
   }
 
+    /**NIKHAR NOTES:
+     * @ MainThread is the first thread that starts running when you start your application
+     */
+
   @MainThread
   public void setWorkflowState(WorkflowState workflowState) {
     if (!workflowState.equals(WorkflowState.CONFIRMED)
@@ -74,6 +88,7 @@ public class WorkflowModel extends AndroidViewModel implements SearchResultListe
     }
     this.workflowState.setValue(workflowState);
   }
+
 
   @MainThread
   public void confirmingObject(DetectedObject object, float progress) {

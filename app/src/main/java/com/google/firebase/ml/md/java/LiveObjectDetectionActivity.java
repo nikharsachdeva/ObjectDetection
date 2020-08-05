@@ -16,23 +16,34 @@
 
 package com.google.firebase.ml.md.java;
 
+import android.Manifest;
 import android.animation.AnimatorInflater;
 import android.animation.AnimatorSet;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.MediaController;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -48,6 +59,7 @@ import com.google.firebase.ml.md.java.camera.WorkflowModel;
 import com.google.firebase.ml.md.java.camera.WorkflowModel.WorkflowState;
 import com.google.firebase.ml.md.java.camera.CameraSource;
 import com.google.firebase.ml.md.java.camera.CameraSourcePreview;
+import com.google.firebase.ml.md.java.objectdetection.DetectedObject;
 import com.google.firebase.ml.md.java.objectdetection.MultiObjectProcessor;
 import com.google.firebase.ml.md.java.objectdetection.ProminentObjectProcessor;
 import com.google.firebase.ml.md.java.productsearch.BottomSheetScrimView;
@@ -57,14 +69,16 @@ import com.google.firebase.ml.md.java.productsearch.SearchEngine;
 import com.google.firebase.ml.md.java.productsearch.SearchedObject;
 import com.google.firebase.ml.md.java.settings.PreferenceUtils;
 import com.google.firebase.ml.md.java.settings.SettingsActivity;
+import com.google.firebase.ml.vision.objects.FirebaseVisionObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Demonstrates the object detection and visual search workflow using camera preview.
  */
-public class LiveObjectDetectionActivity extends AppCompatActivity implements OnClickListener {
+public class LiveObjectDetectionActivity extends AppCompatActivity implements OnClickListener, Test {
 
     private static final String TAG = "LiveObjectActivity";
 
@@ -88,6 +102,12 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
     private TextView bottomSheetTitleView;
     private Bitmap objectThumbnailForBottomSheet;
     private boolean slidingSheetUpFromHiddenState;
+
+    public DetectedObject detectedObject;
+
+    FrameLayout videoFrameLayout;
+    VideoView videoView;
+    Rect receivedRectange;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +143,32 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
         settingsButton.setOnClickListener(this);
 
         setUpWorkflowModel();
+
+        /**
+         *  CALLING VIDEO VIEW */
+        initVideoFrame();
+
+
+    }
+
+    private void initVideoFrame() {
+
+        videoFrameLayout = (FrameLayout) findViewById(R.id.static_overlay_container);
+
+        videoView = new VideoView(this);
+        //videoView.setVisibility(View.GONE);
+        videoView.setVideoPath("android.resource://" + getPackageName() + "/" + R.raw.demo);
+
+        MediaController mediaController = new MediaController(this);
+        mediaController.setAnchorView(videoView);
+        videoView.setMediaController(mediaController);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 300);
+        params.leftMargin = 20;
+        params.rightMargin = 20;
+        params.gravity = Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL;
+        videoFrameLayout.addView(videoView, params);
+
     }
 
     @Override
@@ -279,14 +325,48 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
         productRecyclerView.setAdapter(new ProductAdapter(ImmutableList.of()));
     }
 
+    /**
+     * NIKHAR NOTES :
+     * Rotating a device is one of a few configuration changes that an app can go through during its lifetime.
+     * All of these configuration changes cause the Activity to be torn down and recreated.
+     * <p>
+     * The ViewModel class is designed to hold and manage UI-related data in a life-cycle conscious way.
+     * This allows data to survive configuration changes such as screen rotations
+     * <p>
+     * The ViewModel exists from when the you first request a ViewModel
+     * (usually in the onCreate the Activity)
+     * until the Activity is finished and destroyed.
+     * onCreate may be called several times during the life of an Activity,
+     * such as when the app is rotated, but the ViewModel survives throughout.
+     * <p>
+     * <p>
+     * The first time the ViewModelProviders.of method is called by MainActivity, it creates a new ViewModel instance.
+     * When this method is called again, which happens whenever onCreate is called,
+     * it will return the pre-existing ViewModel associated with the specific Court-Counter MainActivity
+     * <p>
+     * ViewModelProviders.of(<THIS ARGUMENT>).get(ScoreViewModel.class);
+     * This allows you to have an app that opens a lot of different instances of the same Activity or Fragment,
+     * but with different ViewModel information
+     */
     private void setUpWorkflowModel() {
         workflowModel = ViewModelProviders.of(this).get(WorkflowModel.class);
 
         // Observes the workflow state changes, if happens, update the overlay view indicators and
         // camera preview state.
+
+        /**
+         * NIKHAR NOTES:
+         * How live data works is, when the value of the livedata changes then it will be notified.
+         * When you call setValue of the live data than the callback comes to the observer.
+         *
+         * songsLiveData.value = songsLiveData.value//this will give the callback to you observer        *
+         *
+         */
+
         workflowModel.workflowState.observe(
                 this,
                 workflowState -> {
+                    /**currentWorkflowState = not started*/
                     if (workflowState == null || Objects.equal(currentWorkflowState, workflowState)) {
                         return;
                     }
@@ -304,6 +384,7 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
         // Observes changes on the object to search, if happens, fire product search request.
         workflowModel.objectToSearch.observe(
                 this, object -> searchEngine.search(object, workflowModel));
+
 
         // Observes changes on the object that has search completed, if happens, show the bottom sheet
         // to present search result.
@@ -372,25 +453,46 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
         boolean wasPromptChipGone = (promptChip.getVisibility() == View.GONE);
         boolean wasSearchButtonGone = (searchButton.getVisibility() == View.GONE);
 
+
         searchProgressBar.setVisibility(View.GONE);
         switch (workflowState) {
             case DETECTING:
+
             case DETECTED:
+
+
             case CONFIRMING:
+                videoView.setVisibility(View.GONE);
+                if (videoView.isPlaying()) {
+                    videoView.stopPlayback();
+                }
+
                 promptChip.setVisibility(View.VISIBLE);
                 promptChip.setText(R.string.prompt_point_at_an_object);
                 searchButton.setVisibility(View.GONE);
                 startCameraPreview();
                 break;
             case CONFIRMED:
+                videoView.setVisibility(View.VISIBLE);
+
+                if (!videoView.isPlaying()) {
+                    videoView.start();
+                }
+
                 promptChip.setVisibility(View.GONE);
                 searchButton.setVisibility(View.VISIBLE);
                 searchButton.setEnabled(true);
                 searchButton.setBackgroundColor(Color.WHITE);
-                Toast.makeText(this, "Blah", Toast.LENGTH_SHORT).show();
+
                 startCameraPreview();
                 break;
             case SEARCHING:
+                //videoFrameLayout.setVisibility(View.GONE);
+                videoView.setVisibility(View.GONE);
+                if (videoView.isPlaying()) {
+                    videoView.stopPlayback();
+                }
+
                 promptChip.setVisibility(View.GONE);
                 searchButton.setVisibility(View.VISIBLE);
                 searchButton.setEnabled(false);
@@ -399,11 +501,21 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
                 stopCameraPreview();
                 break;
             case SEARCHED:
+                videoView.setVisibility(View.GONE);
+                if (videoView.isPlaying()) {
+                    videoView.stopPlayback();
+                }
+
                 promptChip.setVisibility(View.GONE);
                 searchButton.setVisibility(View.GONE);
                 stopCameraPreview();
                 break;
             default:
+                videoView.setVisibility(View.GONE);
+                if (videoView.isPlaying()) {
+                    videoView.stopPlayback();
+                }
+
                 promptChip.setVisibility(View.GONE);
                 searchButton.setVisibility(View.GONE);
                 break;
@@ -421,4 +533,13 @@ public class LiveObjectDetectionActivity extends AppCompatActivity implements On
             searchButtonAnimator.start();
         }
     }
+
+    @Override
+    public void GetNotified(FirebaseVisionObject object) {
+        receivedRectange = object.getBoundingBox();
+        Log.d("coordinatesReceived", receivedRectange.centerX() + "//" + receivedRectange.centerY());
+
+    }
+
+
 }
